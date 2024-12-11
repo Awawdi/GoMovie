@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gomovie-backend-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gomovie-backend
+  template:
+    metadata:
+      labels:
+        app: gomovie-backend
+    spec:
+      containers:
+      - name: gomovie-backend
+        image: orsanaw/gomovie-backend:1.0.2
+        ports:
+        - containerPort: 8080

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GoMovie Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .search-container {
+            text-align: center;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .search-container h1 {
+            margin-bottom: 20px;
+        }
+        .search-container input[type="text"] {
+            width: 300px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        .search-container button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .search-container button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+    <script>
+        async function searchMovies() {
+            const query = document.querySelector('.search-container input[type="text"]').value;
+            const response = await fetch('http://k8s.imdbsearch.space/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query: query })
+            });
+
+            const text = await response.text();
+            console.log(text); // Log the raw response text
+
+            if (response.ok && response.headers.get('Content-Type').includes('application/json')) {
+                try {
+                    const result = JSON.parse(text);
+                    console.log(result.message);
+                } catch (error) {
+                    console.error('Error parsing JSON:', error);
+                }
+            } else {
+                console.error('Unexpected response:', text);
+            }
+        }
+</script>
+</head>
+<body>
+    <div class="search-container">
+        <h1>GoMovie Search</h1>
+        <input type="text" placeholder="Search for movies...">
+        <button onclick="searchMovies()">Search</button>
+    </div>
+</body>
+</html>
