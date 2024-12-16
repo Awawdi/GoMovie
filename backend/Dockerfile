@@ -1,10 +1,15 @@
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.9
-
+FROM python:3.9-alpine AS builder
 WORKDIR /app
 
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+COPY pyproject.toml requirements.txt /app/
+RUN pip install --no-cache-dir wheel
+RUN pip wheel --no-cache-dir -r /app/requirements.txt -w /wheels
 
+FROM python:3.9-alpine AS runner
+WORKDIR /app
+
+COPY --from=builder /wheels /wheels
+RUN pip install --no-cache /wheels/* && rm -rf /wheels
 COPY main.py /app/main.py
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -23,3 +23,10 @@ spec:
               name: gomovie-backend-service
               port:
                 number: 80
+        - path: /pod
+          pathType: Prefix
+          backend:
+            service:
+              name: gomovie-backend-service
+              port:
+                number: 80
