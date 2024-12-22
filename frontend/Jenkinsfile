@@ -73,7 +73,7 @@ pipeline {
                     script {
                         sh """
                         docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
-                        docker push ${DOCKER_IMAGE}
+                        docker push ${env.DOCKERHUB_REPO}:${IMAGE_TAG}
                         """
                     }
                 }
