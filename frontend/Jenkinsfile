@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKERHUB_REPO = 'orsanaw/gomovie-frontend-image'
-        DOCKERFILE = 'Dockerfile'
+        DOCKERFILE = 'frontend/Dockerfile'
         IMAGE_VERSION_FILE = 'version.txt'
     }
 
