@@ -78,82 +78,102 @@
     </style>
 </head>
 <body>
-
     <h1>IMDb Movie Search</h1>
-    <input type="text" id="movieSearch" placeholder="Enter movie name">
+    <input type="text" id="searchInput" placeholder="Enter a movie title">
     <button onclick="searchMovies()">Search</button>
-    <div id="movieResults"></div>
+    <div id="results"></div>
 
     <script>
-        async function searchMovies() {
-            const input = document.getElementById('movieSearch');
-            const resultsContainer = document.getElementById('movieResults');
-            resultsContainer.innerHTML = ''; // Clear previous results
+                async function searchMovies() {
+            const query = document.getElementById('searchInput').value.trim();
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = ''; // Clear previous results
 
-            if (input.value.trim() !== '') {
-                try {
-                    const response = await fetch('http://k8s.imdbsearch.space/search', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ query: input.value }), // Correct key for search query
-                    });
+            if (!query) {
+                alert('Please enter a movie title!');
+                return;
+            }
 
-                    if (response.ok) {
-                        const movies = await response.json();
-                        if (movies.length > 0) { // Correctly access movie data
-                            movies.forEach(movie => {
-                                const movieDiv = document.createElement('div');
-                                movieDiv.classList.add('movie');
+            try {
+                const response = await fetch('http://127.0.0.1:8000/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                const data = await response.json();
 
-                                // Movie title with hyperlink
-                                const title = document.createElement('h2');
-                                const link = document.createElement('a');
-                                link.href = `https://www.imdb.com/title/${movie.id}`;
-                                link.target = '_blank';
-                                link.textContent = movie.name || 'Unknown Title';
-                                title.appendChild(link);
-                                movieDiv.appendChild(title);
-
-                                // Movie year
-                                if (movie.year) {
-                                    const year = document.createElement('p');
-                                    year.textContent = `Year: ${movie.year}`;
-                                    year.classList.add('year');
-                                    movieDiv.appendChild(year);
-                                }
-
-                                // Movie rating
-                                if (movie.rating) {
-                                    const rating = document.createElement('p');
-                                    rating.textContent = `Rating: ${movie.rating}`;
-                                    rating.classList.add('rating');
-                                    movieDiv.appendChild(rating);
-                                }
-
-                                // Parental guide
-                                if (movie.parental_guide && movie.parental_guide.length > 0) {
-                                    const parentalGuide = document.createElement('p');
-                                    parentalGuide.textContent = `Parental Guide: ${movie.parental_guide.join(', ')}`;
-                                    movieDiv.appendChild(parentalGuide);
-                                }
-
-                                // Append movieDiv to results container
-                                resultsContainer.appendChild(movieDiv);
-                            });
-                        } else {
-                            resultsContainer.textContent = 'No movies found.';
-                        }
-                    } else {
-                        resultsContainer.textContent = 'Error fetching movie data.';
-                    }
-                } catch (error) {
-                    resultsContainer.textContent = 'An unexpected error occurred.';
-                    console.error(error);
+                if (data.movies.length === 0) {
+                    resultsDiv.textContent = 'No movies found.';
+                    return;
                 }
+
+                data.movies.forEach(movie => {
+                    const movieDiv = document.createElement('div');
+                    movieDiv.className = 'movie';
+
+                    // Create a link for the movie name
+                    const titleLink = document.createElement('a');
+                    titleLink.href = movie.imdb_url; // IMDb URL
+                    titleLink.target = '_blank'; // Open in a new tab
+                    titleLink.textContent = `${movie.name} (${movie.year})`;
+                    titleLink.style.textDecoration = 'none'; // Optional: remove underline
+
+                    const title = document.createElement('h3');
+                    title.appendChild(titleLink);
+                    movieDiv.appendChild(title);
+
+                    const detailsButton = document.createElement('button');
+                    detailsButton.textContent = 'View Details';
+                    detailsButton.onclick = () => fetchMovieDetails(movie.id, movieDiv);
+                    movieDiv.appendChild(detailsButton);
+
+                    resultsDiv.appendChild(movieDiv);
+                });
+            } catch (error) {
+                console.error('Error fetching movies:', error);
+                resultsDiv.textContent = 'An error occurred while fetching movies.';
             }
         }
+
+
+        async function fetchMovieDetails(movieId, movieDiv) {
+                // Check if details are already displayed
+                if (movieDiv.querySelector('.details')) {
+                    return; // Details already displayed, exit the function
+                }
+
+                try {
+                    const response = await fetch('http://127.0.0.1:8000/movie-details', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: movieId })
+                    });
+                    const data = await response.json();
+
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+
+                    // Create and append details to the movieDiv
+                    const details = document.createElement('div');
+                    details.className = 'details';
+                    details.innerHTML = `
+                        <strong>Parental Guide:</strong> ${data.parental_guide}<br>
+                        <strong>Rating:</strong> ${data.rating}<br>
+                        <strong>Runtime:</strong> ${data.runtime || 'Unknown Runtime'}<br>
+                        <strong>Genre:</strong> ${data.genre || 'Unknown Genre'}<br>
+                        <strong>Director:</strong> ${data.director || 'Unknown Director'}<br>
+                        <strong>Actors:</strong> ${data.actors || 'Unknown Actors'}<br>
+                        <strong>Plot:</strong> ${data.plot || 'No plot available'}
+                    `;
+                    movieDiv.appendChild(details);
+                } catch (error) {
+                    console.error('Error fetching movie details:', error);
+                    alert('An error occurred while fetching movie details.');
+                }
+            }
+
     </script>
 </body>
 </html>

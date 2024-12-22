@@ -1,0 +1,101 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKERHUB_REPO = 'orsanaw/gomovie-frontend-image'
+        DOCKERFILE = 'Dockerfile'
+        IMAGE_VERSION_FILE = 'version.txt'
+    }
+
+    parameters {
+        choice(name: 'VERSION_INCREMENT', choices: ['MAJOR', 'MINOR', 'PATCH'], description: 'Select the version part to increment')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Read Current Version') {
+            steps {
+                script {
+                    if (fileExists(env.IMAGE_VERSION_FILE)) {
+                        def versionContent = readFile(env.IMAGE_VERSION_FILE).trim()
+                        def versionParts = versionContent.tokenize('.')
+
+                        if (versionParts.size() == 3) {
+                            MAJOR_VERSION = versionParts[0].toInteger()
+                            MINOR_VERSION = versionParts[1].toInteger()
+                            PATCH_VERSION = versionParts[2].toInteger()
+                        } else {
+                            error("Invalid version format in ${env.IMAGE_VERSION_FILE}. Expected format: x.y.z")
+                        }
+                    } else {
+                        MAJOR_VERSION = 1
+                        MINOR_VERSION = 0
+                        PATCH_VERSION = 0
+                    }
+
+                    // Increment the selected version part
+                    if (params.VERSION_INCREMENT == 'MAJOR') {
+                        MAJOR_VERSION++
+                        MINOR_VERSION = 0
+                        PATCH_VERSION = 0
+                    } else if (params.VERSION_INCREMENT == 'MINOR') {
+                        MINOR_VERSION++
+                        PATCH_VERSION = 0
+                    } else if (params.VERSION_INCREMENT == 'PATCH') {
+                        PATCH_VERSION++
+                    } else {
+                        error("Invalid VERSION_INCREMENT parameter: ${params.VERSION_INCREMENT}")
+                    }
+
+                    IMAGE_TAG = "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}"
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh "docker build -t ${env.DOCKERHUB_REPO}:${IMAGE_TAG} -f ${env.DOCKERFILE} ."
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials',
+                                                  usernameVariable: 'DOCKER_USERNAME',
+                                                  passwordVariable: 'DOCKER_PASSWORD')]) {
+                    script {
+                        sh """
+                        docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
+                        docker push ${DOCKER_IMAGE}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Update Version File') {
+            steps {
+                script {
+                    writeFile file: env.IMAGE_VERSION_FILE, text: IMAGE_TAG
+                    archiveArtifacts artifacts: env.IMAGE_VERSION_FILE, fingerprint: true
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Successfully built and pushed Docker image: ${env.DOCKERHUB_REPO}:${IMAGE_TAG}"
+        }
+        failure {
+            echo "Build failed. Check the logs for details."
+        }
+    }
+}
