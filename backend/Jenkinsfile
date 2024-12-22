@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_REPO = 'orsanaw/gomovie-frontend-image'
-        DOCKERFILE = 'frontend/Dockerfile'
-        IMAGE_VERSION_FILE = 'front-version.txt'
+        DOCKERHUB_REPO = 'orsanaw/gomovie-backend-image'
+        DOCKERFILE = 'backend/Dockerfile'
+        IMAGE_VERSION_FILE = 'backend-version.txt'
     }
 
     parameters {
