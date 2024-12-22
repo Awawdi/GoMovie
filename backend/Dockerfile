@@ -1,7 +1,7 @@
 FROM python:3.9-alpine AS builder
 WORKDIR /app
 
-COPY ./backend/pyproject.toml requirements.txt /app/
+COPY ./backend/pyproject.toml ./backend/requirements.txt /app/
 RUN pip install --no-cache-dir wheel
 RUN pip wheel --no-cache-dir -r /app/requirements.txt -w /wheels
 
