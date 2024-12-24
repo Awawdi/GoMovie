@@ -1,0 +1,17 @@
+# Ignore virtual environment directories
+.venv/
+env/
+
+# Ignore all .idea files by default
+.idea/
+
+# Include specific files or folders
+!.idea/codeStyles
+!.idea/runConfigurations
+!.idea/inspectionProfiles
+
+# Exclude user-specific files
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/vcs.xml
+.idea/modules.xml
