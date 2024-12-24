@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_REPO = 'orsanaw/gomovie-frontend-image'
-        DOCKERFILE = 'frontend/Dockerfile'
-        IMAGE_VERSION_FILE = 'frontend-version.txt'
+        DOCKERHUB_REPO = "${env.GOMOVIE_FRONTEND_IMAGE}" // Use environment variable defined in Jenkins
+        DOCKERFILE = 'Dockerfile' // Path to your Dockerfile
+        IMAGE_VERSION_FILE = 'version.txt' // File to track the current version
     }
 
     parameters {
@@ -12,40 +12,16 @@ pipeline {
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Read Current Version') {
             steps {
                 script {
-                    if (fileExists(env.IMAGE_VERSION_FILE)) {
-                        def versionContent = readFile(env.IMAGE_VERSION_FILE).trim()
-                        def versionParts = versionContent.tokenize('.')
-
-                        if (versionParts.size() == 3) {
-                            MAJOR_VERSION = versionParts[0].toInteger()
-                            MINOR_VERSION = versionParts[1].toInteger()
-                            PATCH_VERSION = versionParts[2].toInteger()
-                        } else {
-                            error("Invalid version format in ${env.IMAGE_VERSION_FILE}. Expected format: x.y.z")
-                        }
-                    } else {
-                        MAJOR_VERSION = 1
-                        MINOR_VERSION = 0
-                        PATCH_VERSION = 0
-                    }
-
-                    if (params.VERSION_INCREMENT == 'MAJOR') {
-                        MAJOR_VERSION++
-                        MINOR_VERSION = 0
-                        PATCH_VERSION = 0
-                    } else if (params.VERSION_INCREMENT == 'MINOR') {
-                        MINOR_VERSION++
-                        PATCH_VERSION = 0
-                    } else if (params.VERSION_INCREMENT == 'PATCH') {
-                        PATCH_VERSION++
-                    } else {
-                        error("Invalid VERSION_INCREMENT parameter: ${params.VERSION_INCREMENT}")
-                    }
-
-                    IMAGE_TAG = "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}"
+                    readCurrentVersion(env.IMAGE_VERSION_FILE, params.VERSION_INCREMENT)
                 }
             }
         }
@@ -53,29 +29,23 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh """
-                    docker build --label deployment_version=${IMAGE_TAG} -t ${env.DOCKERHUB_REPO}:${IMAGE_TAG} -f ${env.DOCKERFILE} .
-                    """
+                    sh "docker build -t ${env.DOCKERHUB_REPO}:${IMAGE_TAG} -f ${env.DOCKERFILE} ."
                 }
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials',
-                                                  usernameVariable: 'DOCKER_USERNAME',
-                                                  passwordVariable: 'DOCKER_PASSWORD')]) {
-                    script {
-                        sh """
-                        docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
-                        docker push ${env.DOCKERHUB_REPO}:${IMAGE_TAG}
-                        """
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USER --password-stdin"
+                        sh "docker push ${env.DOCKERHUB_REPO}:${IMAGE_TAG}"
                     }
                 }
             }
         }
 
-        stage('Save Version File') {
+        stage('Update Version File') {
             when {
                 expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
             }
@@ -90,10 +60,10 @@ pipeline {
 
     post {
         success {
-            echo "Successfully built and pushed Docker image with deployment_version label: ${env.DOCKERHUB_REPO}:${IMAGE_TAG}"
+            echo "Successfully built and pushed Docker image: ${env.DOCKERHUB_REPO}:${IMAGE_TAG}"
         }
         failure {
-            echo "Build and Push failed. Version file not updated. Check the logs for details."
+            echo "Build failed. Check the logs for details."
         }
     }
 }
