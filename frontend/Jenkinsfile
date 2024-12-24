@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKERHUB_REPO = 'orsanaw/gomovie-frontend-image'
         DOCKERFILE = 'frontend/Dockerfile'
-        IMAGE_VERSION_FILE = 'front-version.txt'
+        IMAGE_VERSION_FILE = 'frontend-version.txt'
     }
 
     parameters {
@@ -12,12 +12,6 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Read Current Version') {
             steps {
                 script {
@@ -38,7 +32,6 @@ pipeline {
                         PATCH_VERSION = 0
                     }
 
-                    // Increment the selected version part
                     if (params.VERSION_INCREMENT == 'MAJOR') {
                         MAJOR_VERSION++
                         MINOR_VERSION = 0
@@ -60,7 +53,9 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${env.DOCKERHUB_REPO}:${IMAGE_TAG} -f ${env.DOCKERFILE} ."
+                    sh """
+                    docker build --label deployment_version=${IMAGE_TAG} -t ${env.DOCKERHUB_REPO}:${IMAGE_TAG} -f ${env.DOCKERFILE} .
+                    """
                 }
             }
         }
@@ -80,7 +75,10 @@ pipeline {
             }
         }
 
-        stage('Update Version File') {
+        stage('Save Version File') {
+            when {
+                expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+            }
             steps {
                 script {
                     writeFile file: env.IMAGE_VERSION_FILE, text: IMAGE_TAG
@@ -92,10 +90,10 @@ pipeline {
 
     post {
         success {
-            echo "Successfully built and pushed Docker image: ${env.DOCKERHUB_REPO}:${IMAGE_TAG}"
+            echo "Successfully built and pushed Docker image with deployment_version label: ${env.DOCKERHUB_REPO}:${IMAGE_TAG}"
         }
         failure {
-            echo "Build failed. Check the logs for details."
+            echo "Build and Push failed. Version file not updated. Check the logs for details."
         }
     }
 }
