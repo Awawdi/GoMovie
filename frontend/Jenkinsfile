@@ -4,7 +4,7 @@ pipeline {
 
     environment {
         DOCKERHUB_REPO = "${env.GOMOVIE_FRONTEND_IMAGE}"
-        DOCKERFILE = 'Dockerfile'
+        DOCKERFILE = 'frontend/Dockerfile'
         IMAGE_VERSION_FILE = 'version.txt'
     }
 
