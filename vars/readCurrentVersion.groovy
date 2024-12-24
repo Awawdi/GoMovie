@@ -30,5 +30,6 @@ def call(String versionFile, String versionIncrement) {
     }
 
     IMAGE_TAG = "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}"
-    echo "Generated Image Tag: ${IMAGE_TAG}"
+    env.IMAGE_TAG = IMAGE_TAG
+    echo "Generated IMAGE_TAG: ${IMAGE_TAG}"
 }
