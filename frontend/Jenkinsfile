@@ -1,10 +1,11 @@
+@Library('shared-library') _
 pipeline {
     agent any
 
     environment {
-        DOCKERHUB_REPO = "${env.GOMOVIE_FRONTEND_IMAGE}" // Use environment variable defined in Jenkins
-        DOCKERFILE = 'Dockerfile' // Path to your Dockerfile
-        IMAGE_VERSION_FILE = 'version.txt' // File to track the current version
+        DOCKERHUB_REPO = "${env.GOMOVIE_FRONTEND_IMAGE}"
+        DOCKERFILE = 'Dockerfile'
+        IMAGE_VERSION_FILE = 'version.txt'
     }
 
     parameters {
