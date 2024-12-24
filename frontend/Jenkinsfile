@@ -30,7 +30,12 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${env.DOCKERHUB_REPO}:${IMAGE_TAG} -f ${env.DOCKERFILE} ."
+                    sh """
+                        docker build \
+                            --label deployment_version=${IMAGE_TAG} \
+                            -t ${env.DOCKERHUB_REPO}:${IMAGE_TAG} \
+                            -f ${env.DOCKERFILE} .
+                    """
                 }
             }
         }
