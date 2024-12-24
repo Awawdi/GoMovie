@@ -39,6 +39,22 @@ pipeline {
                 }
             }
         }
+        stage('Verify Deployment Version Label') {
+            steps {
+                script {
+                    def labels = sh(
+                        script: "docker inspect --format='{{json .Config.Labels}}' ${env.DOCKERHUB_REPO}:${IMAGE_TAG}",
+                        returnStdout: true
+                    ).trim()
+
+                    if (!labels.contains("\"deployment_version\":\"${IMAGE_TAG}\"")) {
+                        error "Label 'deployment_version' with value '${IMAGE_TAG}' not found in the Docker image."
+                    }
+
+                    echo "Verified label 'deployment_version' with value '${IMAGE_TAG}'."
+                }
+            }
+        }
 
         stage('Push Docker Image') {
             steps {
