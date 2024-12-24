@@ -79,7 +79,7 @@
 </head>
 <body>
     <h1>IMDb Movie Search</h1>
-    <input type="text" id="searchInput" placeholder="Enter a movie title">
+    <input type="text" id="searchInput" placeholder="Enter a movie title:">
     <button onclick="searchMovies()">Search</button>
     <div id="results"></div>
 
@@ -95,7 +95,7 @@
             }
 
             try {
-                const response = await fetch('http://127.0.0.1:8000/search', {
+                const response = await fetch('http://k8s.imdbsearch.space/search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query })
