@@ -22,7 +22,7 @@ pipeline {
         name: 'VERSION_INCREMENT',
         choices: ['PATCH','MAJOR','MINOR'],
         description: 'Select the version part to increment (default: PATCH)'
-        }
+        )
     }
 
     stages {
