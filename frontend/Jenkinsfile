@@ -20,7 +20,7 @@ pipeline {
     parameters {
         choice(
         name: 'VERSION_INCREMENT',
-        choices: ['PATCH','MAJOR','MINOR']
+        choices: ['PATCH','MAJOR','MINOR'],
         description: 'Select the version part to increment (default: PATCH)'
         }
     }
