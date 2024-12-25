@@ -85,18 +85,20 @@ pipeline {
                         echo "→ Building Docker image with tag: ${IMAGE_TAG}"
                         echo "→ Using Dockerfile: ${env.DOCKERFILE}"
                         sh """
-                        docker build \
-                            --label org.opencontainers.image.version=${IMAGE_TAG} \
-                            --label org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-                            --label deployment_version=${IMAGE_TAG} \
-                            --label git.commit=$(git rev-parse HEAD) \
-                            --build-arg BUILD_VERSION=${IMAGE_TAG} \
-                            --no-cache \
-                            -t ${env.DOCKERHUB_REPO}:${IMAGE_TAG} \
-                            -t ${env.DOCKERHUB_REPO}:latest \
-                            -f ${env.DOCKERFILE} .
-                    """
-                    echo "✓ Docker image built successfully"
+                            docker build \
+                                --label org.opencontainers.image.version=${IMAGE_TAG} \
+                                --label org.opencontainers.image.created=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+                                --label deployment_version=${IMAGE_TAG} \
+                                --label git.commit=\$(git rev-parse HEAD) \
+                                --label build.timestamp="${BUILD_TIMESTAMP}" \
+                                --label build.user="\$(whoami)" \
+                                --build-arg BUILD_VERSION=${IMAGE_TAG} \
+                                --no-cache \
+                                -t ${env.DOCKERHUB_REPO}:${IMAGE_TAG} \
+                                -t ${env.DOCKERHUB_REPO}:latest \
+                                -f ${env.DOCKERFILE} .
+                        """
+                        echo "✓ Docker image built successfully"
                    } catch (Exception e) {
                         error "Failed to build Docker image: ${e.message}"
                    }
