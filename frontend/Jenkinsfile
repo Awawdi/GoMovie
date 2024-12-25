@@ -2,17 +2,63 @@
 pipeline {
     agent any
 
+    options {
+        timeout(time: 1, unit: 'HOURS')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        // Prevent concurrent builds
+        disableConcurrentBuilds()
+        timestamps()
+    }
+
     environment {
         DOCKERHUB_REPO = "${env.GOMOVIE_FRONTEND_IMAGE}"
         DOCKERFILE = 'frontend/Dockerfile'
         IMAGE_VERSION_FILE = 'version.txt'
+        BUILD_TIMESTAMP = sh(script: 'date -u "+%Y-%m-%d %H:%M:%S UTC"', returnStdout: true).trim()
     }
 
     parameters {
-        choice(name: 'VERSION_INCREMENT', choices: ['MAJOR', 'MINOR', 'PATCH'], description: 'Select the version part to increment')
+        choice(
+        name: 'VERSION_INCREMENT',
+        choices: ['PATCH','MAJOR','MINOR']
+        description: 'Select the version part to increment (default: PATCH)'
+        }
     }
 
     stages {
+        stage('Validate Environment') {
+            steps {
+                script {
+                    echo "→ Starting environment validation at ${BUILD_TIMESTAMP}"
+                    echo "→ Checking required environment variables..."
+
+                    def requiredEnvVars = ['GOMOVIE_FRONTEND_IMAGE']
+                    requiredEnvVars.each { var ->
+                        if (!env[var]) {
+                            error "Missing required environment variable: ${var}"
+                        }
+                        echo "✓ Found required environment variable: ${var}"
+                    }
+
+                    try {
+                        echo "→ Checking Docker daemon status..."
+                        def dockerInfo = sh(script: 'docker info', returnStdout: true).trim()
+                        echo "✓ Docker daemon is running and accessible"
+                        def dockerVersion = sh(script: 'docker version --format "{{.Server.Version}}"', returnStdout: true).trim()
+                        echo "✓ Docker version: ${dockerVersion}"
+
+                    } catch (Exception e) {
+                            error """
+                                Docker daemon check failed: ${e.message}
+                                Please ensure:
+                                1. Docker daemon is running
+                                2. Jenkins has permissions to access Docker
+                                3. Docker socket is accessible
+                            """
+                    }
+                }
+            }
+        }
         stage('Checkout') {
             steps {
                 checkout scm
@@ -22,36 +68,59 @@ pipeline {
         stage('Read Current Version') {
             steps {
                 script {
-                    readCurrentVersion(env.IMAGE_VERSION_FILE, params.VERSION_INCREMENT)
+                    try {
+                        echo "→ Reading current version from ${env.IMAGE_VERSION_FILE}..."
+                        readCurrentVersion(env.IMAGE_VERSION_FILE, params.VERSION_INCREMENT)
+                        echo "✓ New version tag: ${IMAGE_TAG}"
+                    } catch (Exception e) {
+                        error "Failed to read/increment version: ${e.message}"
+                    }
                 }
             }
         }
-
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh """
+                    try {
+                        echo "→ Building Docker image with tag: ${IMAGE_TAG}"
+                        echo "→ Using Dockerfile: ${env.DOCKERFILE}"
+                        sh """
                         docker build \
+                            --label org.opencontainers.image.version=${IMAGE_TAG} \
+                            --label org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
                             --label deployment_version=${IMAGE_TAG} \
+                            --label git.commit=$(git rev-parse HEAD) \
+                            --build-arg BUILD_VERSION=${IMAGE_TAG} \
+                            --no-cache \
                             -t ${env.DOCKERHUB_REPO}:${IMAGE_TAG} \
+                            -t ${env.DOCKERHUB_REPO}:latest \
                             -f ${env.DOCKERFILE} .
                     """
+                    echo "✓ Docker image built successfully"
+                   } catch (Exception e) {
+                        error "Failed to build Docker image: ${e.message}"
+                   }
                 }
             }
         }
         stage('Verify Deployment Version Label') {
             steps {
                 script {
-                    def labels = sh(
-                        script: "docker inspect --format='{{json .Config.Labels}}' ${env.DOCKERHUB_REPO}:${IMAGE_TAG}",
-                        returnStdout: true
-                    ).trim()
+                    try{
+                        echo "→ Verifying deployment version label..."
+                        def labels = sh(
+                            script: "docker inspect --format='{{json .Config.Labels}}' ${env.DOCKERHUB_REPO}:${IMAGE_TAG}",
+                            returnStdout: true
+                        ).trim()
 
-                    if (!labels.contains("\"deployment_version\":\"${IMAGE_TAG}\"")) {
-                        error "Label 'deployment_version' with value '${IMAGE_TAG}' not found in the Docker image."
+                        if (!labels.contains("\"deployment_version\":\"${IMAGE_TAG}\"")) {
+                            error "Label 'deployment_version' with value '${IMAGE_TAG}' not found in the Docker image."
+                        }
+
+                        echo "Verified label 'deployment_version' with value '${IMAGE_TAG}'."
+                    } catch (Exception e) {
+                        error "Failed to verify deployment version label: ${e.message}"
                     }
-
-                    echo "Verified label 'deployment_version' with value '${IMAGE_TAG}'."
                 }
             }
         }
@@ -59,11 +128,32 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASSWORD')]) {
-                        sh '''
-                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
-                        '''
+                    try {
+                        echo "→ Pushing Docker image to repository..."
+                        withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASSWORD')]) {
+                            sh '''#!/bin/bash -e
+                                echo "→ Logging into Docker registry..."
+                                echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+                                echo "✓ Successfully logged into Docker registry"
+
+                                echo "→ Pushing image with tag: ${IMAGE_TAG}"
+                                docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                                echo "✓ Successfully pushed ${DOCKERHUB_REPO}:${IMAGE_TAG}"
+
+                                echo "→ Pushing latest tag..."
+                                docker push ${DOCKERHUB_REPO}:latest
+                                echo "✓ Successfully pushed ${DOCKERHUB_REPO}:latest"
+
+                                echo "→ Logging out from Docker registry..."
+                                docker logout
+                                echo "✓ Successfully logged out from Docker registry"
+                            '''
+                        }
+                    } catch (Exception e) {
+                        error "Failed to push Docker image: ${e.message}"
                     }
                 }
             }
@@ -75,19 +165,47 @@ pipeline {
             }
             steps {
                 script {
-                    writeFile file: env.IMAGE_VERSION_FILE, text: IMAGE_TAG
-                    archiveArtifacts artifacts: env.IMAGE_VERSION_FILE, fingerprint: true
+                    try {
+                        echo "→ Updating version file: ${env.IMAGE_VERSION_FILE}"
+                        writeFile file: env.IMAGE_VERSION_FILE, text: IMAGE_TAG
+                        archiveArtifacts artifacts: env.IMAGE_VERSION_FILE, fingerprint: true
+                        echo "✓ Version file updated and archived"
+                    } catch (Exception e) {
+                        error "Failed to update version file: ${e.message}"
+                    }
                 }
             }
         }
     }
-
     post {
         success {
-            echo "Successfully built and pushed Docker image: ${env.DOCKERHUB_REPO}:${IMAGE_TAG}"
+            script {
+                def duration = currentBuild.durationString
+                echo """
+                    ✅ Build Successful!
+                    • Image: ${env.DOCKERHUB_REPO}:${IMAGE_TAG}
+                    • Build Duration: ${duration}
+                    • Build URL: ${env.BUILD_URL}
+                """
+            }
         }
         failure {
-            echo "Build failed. Check the logs for details."
+            script {
+                def duration = currentBuild.durationString
+                echo """
+                    ❌ Build Failed!
+                    • Duration: ${duration}
+                    • Build URL: ${env.BUILD_URL}
+                    Please check the logs above for details.
+                """
+            }
+        }
+        always {
+            script {
+                sh """
+                     docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}"
+                """
+            }
         }
     }
 }
