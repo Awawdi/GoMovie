@@ -176,14 +176,7 @@ pipeline {
                                 sh """
                                     docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}"
                                 """
-                                }
-                            }
-                        }
-                     }
-                  }
-              }
-        }
-    }
+                            }}}}
     post {
         success {
             script {
