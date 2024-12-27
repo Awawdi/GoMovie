@@ -132,7 +132,7 @@ pipeline {
                                                         passwordVariable: 'DOCKER_PASSWORD')]) {
                             sh '''#!/bin/bash -e
                                 echo "→ Logging into Docker registry..."
-                                docker login -u "\$USERNAME" -p "\$PASSWORD"
+                                echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
                                 echo "✓ Successfully logged into Docker registry"
                                 echo "→ Pushing image with tag: ${IMAGE_TAG}"
                                 docker push ${env.DOCKERHUB_REPO}:${IMAGE_TAG}
