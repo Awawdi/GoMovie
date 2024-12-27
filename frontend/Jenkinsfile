@@ -33,7 +33,7 @@ pipeline {
 
                     def requiredEnvVars = ['GOMOVIE_FRONTEND_IMAGE']
                     requiredEnvVars.each { var ->
-                        if (!env.containsKey(var)) {
+                    if (!env[var]) {
                             error "Missing required environment variable: ${var}"
                         }
                             echo "✓ Found required environment variable: ${var}"
