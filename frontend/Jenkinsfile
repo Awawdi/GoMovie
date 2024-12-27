@@ -152,31 +152,36 @@ pipeline {
             }
         }
         stage('Post Image Push') {
-              parallel {
-                    stage('Update Version File') {
-                        when {
-                            expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
-                        }
-                        steps {
-                            script {
-                                try {
-                                    echo "→ Updating version file: ${env.IMAGE_VERSION_FILE}"
-                                    writeFile file: env.IMAGE_VERSION_FILE, text: IMAGE_TAG
-                                    archiveArtifacts artifacts: env.IMAGE_VERSION_FILE, fingerprint: true
-                                    echo "✓ Version file updated and archived"
-                                } catch (Exception e) {
-                                    error "Failed to update version file: ${e.message}"
-                                }
+            parallel {
+                stage('Update Version File') {
+                    when {
+                        expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+                    }
+                    steps {
+                        script {
+                            try {
+                                echo "→ Updating version file: ${env.IMAGE_VERSION_FILE}"
+                                writeFile file: env.IMAGE_VERSION_FILE, text: IMAGE_TAG
+                                archiveArtifacts artifacts: env.IMAGE_VERSION_FILE, fingerprint: true
+                                echo "✓ Version file updated and archived"
+                            } catch (Exception e) {
+                                error "Failed to update version file: ${e.message}"
                             }
                         }
                     }
-                     stage('List Docker Images') {
-                        steps {
-                            script {
-                                sh """
-                                    docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}"
-                                """
-                            }}}}
+                }
+                stage('List Docker Images') {
+                    steps {
+                        script {
+                            sh """
+                                docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}"
+                            """
+                        }
+                    }
+                }
+            }
+        }
+    }
     post {
         success {
             script {
