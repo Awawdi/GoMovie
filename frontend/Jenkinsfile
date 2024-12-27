@@ -127,8 +127,10 @@ pipeline {
                 script {
                     try {
                         echo "→ Pushing Docker image to repository..."
-                        withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials')]) {
-                             sh '''
+                        withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials',
+                                                        usernameVariable: 'DOCKER_USER',
+                                                        passwordVariable: 'DOCKER_PASSWORD')]) {
+                            sh '''#!/bin/bash -e
                                 echo "→ Logging into Docker registry..."
                                 docker login -u "\$USERNAME" -p "\$PASSWORD"
                                 echo "✓ Successfully logged into Docker registry"
