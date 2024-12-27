@@ -10,7 +10,6 @@ pipeline {
     }
 
     environment {
-        DOCKERHUB_REPO = "${env.GOMOVIE_FRONTEND_IMAGE}"
         DOCKERFILE = 'frontend/Dockerfile'
         IMAGE_VERSION_FILE = 'version.txt'
         BUILD_TIMESTAMP = sh(script: 'date -u "+%Y-%m-%d %H:%M:%S UTC"', returnStdout: true).trim()
@@ -90,8 +89,8 @@ pipeline {
                                 --label build.user="\$(whoami)" \
                                 --build-arg BUILD_VERSION=${IMAGE_TAG} \
                                 --no-cache \
-                                -t ${env.DOCKERHUB_REPO}:${IMAGE_TAG} \
-                                -t ${env.DOCKERHUB_REPO}:latest \
+                                -t ${params.GOMOVIE_FRONTEND_IMAGE}:${IMAGE_TAG} \
+                                -t ${params.GOMOVIE_FRONTEND_IMAGE}:latest \
                                 -f ${env.DOCKERFILE} .
                         """
                         echo "✓ Docker image built successfully"
@@ -107,7 +106,7 @@ pipeline {
                     try{
                         echo "→ Verifying deployment version label..."
                         def labels = sh(
-                            script: "docker inspect --format='{{json .Config.Labels}}' ${env.DOCKERHUB_REPO}:${IMAGE_TAG}",
+                            script: "docker inspect --format='{{json .Config.Labels}}' ${params.GOMOVIE_FRONTEND_IMAGE}:${IMAGE_TAG}",
                             returnStdout: true
                         ).trim()
 
@@ -138,12 +137,12 @@ pipeline {
                                 echo "✓ Successfully logged into Docker registry"
 
                                 echo "→ Pushing image with tag: ${IMAGE_TAG}"
-                                docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
-                                echo "✓ Successfully pushed ${DOCKERHUB_REPO}:${IMAGE_TAG}"
+                                docker push ${params.GOMOVIE_FRONTEND_IMAGE}:${IMAGE_TAG}
+                                echo "✓ Successfully pushed ${params.GOMOVIE_FRONTEND_IMAGE}:${IMAGE_TAG}"
 
                                 echo "→ Pushing latest tag..."
-                                docker push ${DOCKERHUB_REPO}:latest
-                                echo "✓ Successfully pushed ${DOCKERHUB_REPO}:latest"
+                                docker push ${params.GOMOVIE_FRONTEND_IMAGE}:latest
+                                echo "✓ Successfully pushed ${params.GOMOVIE_FRONTEND_IMAGE}:latest"
 
                                 echo "→ Logging out from Docker registry..."
                                 docker logout
@@ -193,7 +192,7 @@ pipeline {
                 def duration = currentBuild.durationString
                 echo """
                     ✅ Build Successful!
-                    • Image: ${env.DOCKERHUB_REPO}:${IMAGE_TAG}
+                    • Image: ${params.GOMOVIE_FRONTEND_IMAGE}:${IMAGE_TAG}
                     • Build Duration: ${duration}
                     • Build URL: ${env.BUILD_URL}
                 """
