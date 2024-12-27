@@ -213,12 +213,5 @@ pipeline {
                 """
             }
         }
-        always {
-            script {
-                sh """
-                     docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}"
-                """
-            }
-        }
     }
 }
