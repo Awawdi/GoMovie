@@ -124,10 +124,11 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
+                script {
                     try {
                         echo "→ Pushing Docker image to repository..."
                         withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials')]) {
-                             sh script: """
+                             sh '''
                                 echo "→ Logging into Docker registry..."
                                 docker login -u "\$USERNAME" -p "\$PASSWORD"
                                 echo "✓ Successfully logged into Docker registry"
@@ -140,11 +141,12 @@ pipeline {
                                 echo "→ Logging out from Docker registry..."
                                 docker logout
                                 echo "✓ Successfully logged out from Docker registry"
-                                """, returnStatus: true
+                                '''
                         }
                     } catch (Exception e) {
                         error "Failed to push Docker image: ${e.message}"
                     }
+                }
             }
         }
 
