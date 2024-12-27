@@ -124,7 +124,6 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                script {
                     try {
                         echo "→ Pushing Docker image to repository..."
                         withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials')]) {
@@ -146,7 +145,6 @@ pipeline {
                     } catch (Exception e) {
                         error "Failed to push Docker image: ${e.message}"
                     }
-                }
             }
         }
 
