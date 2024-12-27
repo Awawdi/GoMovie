@@ -50,10 +50,6 @@ pipeline {
                     } catch (Exception e) {
                             error """
                                 Docker daemon check failed: ${e.message}
-                                Please ensure:
-                                1. Docker daemon is running
-                                2. Jenkins has permissions to access Docker
-                                3. Docker socket is accessible
                             """
                     }
                 }
