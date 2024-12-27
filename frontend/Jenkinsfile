@@ -30,14 +30,13 @@ pipeline {
             steps {
                 script {
                     echo "→ Starting environment validation at ${BUILD_TIMESTAMP}"
-                    echo "→ Checking required environment variables..."
 
                     def requiredEnvVars = ['GOMOVIE_FRONTEND_IMAGE']
                     requiredEnvVars.each { var ->
-                        if (!env[var]) {
+                        if (!env.containsKey(var)) {
                             error "Missing required environment variable: ${var}"
                         }
-                        echo "✓ Found required environment variable: ${var}"
+                            echo "✓ Found required environment variable: ${var}"
                     }
 
                     try {
@@ -50,10 +49,6 @@ pipeline {
                     } catch (Exception e) {
                             error """
                                 Docker daemon check failed: ${e.message}
-                                Please ensure:
-                                1. Docker daemon is running
-                                2. Jenkins has permissions to access Docker
-                                3. Docker socket is accessible
                             """
                     }
                 }
@@ -132,27 +127,21 @@ pipeline {
                 script {
                     try {
                         echo "→ Pushing Docker image to repository..."
-                        withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASSWORD')]) {
-                            sh '''#!/bin/bash -e
+                        withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials')]) {
+                             sh script: """
                                 echo "→ Logging into Docker registry..."
-                                echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+                                docker login -u "\$USERNAME" -p "\$PASSWORD"
                                 echo "✓ Successfully logged into Docker registry"
-
                                 echo "→ Pushing image with tag: ${IMAGE_TAG}"
-                                docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                                docker push ${env.DOCKERHUB_REPO}:${IMAGE_TAG}
                                 echo "✓ Successfully pushed ${DOCKERHUB_REPO}:${IMAGE_TAG}"
-
                                 echo "→ Pushing latest tag..."
-                                docker push ${DOCKERHUB_REPO}:latest
+                                docker push ${env.DOCKERHUB_REPO}:latest
                                 echo "✓ Successfully pushed ${DOCKERHUB_REPO}:latest"
-
                                 echo "→ Logging out from Docker registry..."
                                 docker logout
                                 echo "✓ Successfully logged out from Docker registry"
-                            '''
+                                """, returnStatus: true
                         }
                     } catch (Exception e) {
                         error "Failed to push Docker image: ${e.message}"
