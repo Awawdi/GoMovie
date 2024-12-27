@@ -121,7 +121,6 @@ pipeline {
                 }
             }
         }
-
         stage('Push Docker Image') {
             steps {
                 script {
@@ -130,20 +129,21 @@ pipeline {
                         withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials',
                                                         usernameVariable: 'DOCKER_USER',
                                                         passwordVariable: 'DOCKER_PASSWORD')]) {
-                            sh '''#!/bin/bash -e
+                            sh """
                                 echo "→ Logging into Docker registry..."
-                                echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+                                echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USER" --password-stdin
                                 echo "✓ Successfully logged into Docker registry"
                                 echo "→ Pushing image with tag: ${IMAGE_TAG}"
                                 docker push ${env.DOCKERHUB_REPO}:${IMAGE_TAG}
                                 echo "✓ Successfully pushed ${env.DOCKERHUB_REPO}:${IMAGE_TAG}"
                                 echo "→ Pushing latest tag..."
+                                docker tag ${env.DOCKERHUB_REPO}:${IMAGE_TAG} ${env.DOCKERHUB_REPO}:latest
                                 docker push ${env.DOCKERHUB_REPO}:latest
                                 echo "✓ Successfully pushed ${env.DOCKERHUB_REPO}:latest"
                                 echo "→ Logging out from Docker registry..."
                                 docker logout
                                 echo "✓ Successfully logged out from Docker registry"
-                                '''
+                            """
                         }
                     } catch (Exception e) {
                         error "Failed to push Docker image: ${e.message}"
@@ -151,6 +151,7 @@ pipeline {
                 }
             }
         }
+
         stage('Post Image Push') {
             parallel {
                 stage('Update Version File') {
