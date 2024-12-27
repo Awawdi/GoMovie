@@ -22,6 +22,12 @@ pipeline {
         choices: ['PATCH','MAJOR','MINOR'],
         description: 'Select the version part to increment (default: PATCH)'
         )
+        string(
+            name: 'GOMOVIE_FRONTEND_IMAGE',
+            defaultValue: 'orsanaw/gomovie-frontend-image',
+            description: 'Docker repository for the frontend image. Must not be empty.',
+            trim: true
+        )
     }
 
     stages {
@@ -29,15 +35,10 @@ pipeline {
             steps {
                 script {
                     echo "→ Starting environment validation at ${BUILD_TIMESTAMP}"
-                    echo "→ Checking required environment variables..."
-
-                    def requiredEnvVars = ['GOMOVIE_FRONTEND_IMAGE']
-                    requiredEnvVars.each { var ->
-                        if (!env[var]) {
-                            error "Missing required environment variable: ${var}"
-                        }
-                        echo "✓ Found required environment variable: ${var}"
+                    if (!params.GOMOVIE_FRONTEND_IMAGE?.trim()) {
+                        error "GOMOVIE_FRONTEND_IMAGE parameter is missing or empty."
                     }
+                    echo "✓ Environment validation successful."
 
                     try {
                         echo "→ Checking Docker daemon status..."
