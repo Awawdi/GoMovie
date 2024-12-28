@@ -1,10 +1,11 @@
 pipeline {
     agent {
         docker {
-                image 'python:3.9-alpine'
-                args '--rm'
-            }
+            image 'python:3.9-alpine'
+            args '--rm -v /var/run/docker.sock:/var/run/docker.sock'
+        }
     }
+
 
     options {
         timeout(time: 1, unit: 'HOURS')
@@ -15,7 +16,7 @@ pipeline {
 
     environment {
         DOCKERFILE = 'backend/Dockerfile'
-        IMAGE_VERSION_FILE = 'version.txt'
+        IMAGE_VERSION_FILE = 'backend-version.txt'
         BUILD_TIMESTAMP = sh(script: 'date -u "+%Y-%m-%d %H:%M:%S UTC"', returnStdout: true).trim()
     }
 
