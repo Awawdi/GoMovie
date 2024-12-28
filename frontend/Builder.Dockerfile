@@ -6,5 +6,5 @@ RUN apk add --no-cache \
 
 WORKDIR /workspace
 
-COPY cleanup.sh /usr/local/bin/
+COPY ./frontend/cleanup.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/cleanup.sh
