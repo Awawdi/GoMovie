@@ -60,14 +60,13 @@ pipeline {
                 checkout scm
             }
         }
-         stage('Build and Push Custom Builder Image') {
+         stage('Build Custom Builder Image') {
             steps {
                 script {
                     echo "→ Building and pushing custom builder image"
 
                     sh """
                         docker build -f ${BUILDER_DOCKERFILE} -t ${BUILDER_IMAGE} .
-                        docker push ${BUILDER_IMAGE}
                     """
                 }
             }
