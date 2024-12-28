@@ -13,7 +13,7 @@ pipeline {
         IMAGE_VERSION_FILE = 'backend-version.txt'
         BUILD_TIMESTAMP = sh(script: 'date -u "+%Y-%m-%d %H:%M:%S UTC"', returnStdout: true).trim()
         BUILDER_IMAGE = 'orsanaw/custom-builder:latest'
-        BUILDER_DOCKERFILE = 'Builder.Dockerfile'
+        BUILDER_DOCKERFILE = 'backend/Builder.Dockerfile'
     }
 
     parameters {
