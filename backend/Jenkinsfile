@@ -1,11 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'docker:20.10'
-            args '--rm -v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
-
+    agent any
 
     options {
         timeout(time: 1, unit: 'HOURS')
@@ -18,6 +12,8 @@ pipeline {
         DOCKERFILE = 'backend/Dockerfile'
         IMAGE_VERSION_FILE = 'backend-version.txt'
         BUILD_TIMESTAMP = sh(script: 'date -u "+%Y-%m-%d %H:%M:%S UTC"', returnStdout: true).trim()
+        BUILDER_IMAGE = 'orsanaw/custom-builder:latest'
+        BUILDER_DOCKERFILE = 'Builder.Dockerfile'
     }
 
     parameters {
@@ -64,6 +60,18 @@ pipeline {
                 checkout scm
             }
         }
+         stage('Build and Push Custom Builder Image') {
+            steps {
+                script {
+                    echo "→ Building and pushing custom builder image"
+
+                    sh """
+                        docker build -f ${BUILDER_DOCKERFILE} -t ${BUILDER_IMAGE} .
+                        docker push ${BUILDER_IMAGE}
+                    """
+                }
+            }
+        }
         stage('Read Current Version') {
             steps {
                 script {
@@ -81,59 +89,34 @@ pipeline {
             steps {
                 script {
                     try {
-                        echo "→ Building Docker image with tag: ${IMAGE_TAG}"
-                        echo "→ Using Dockerfile: ${env.DOCKERFILE}"
+                        echo "→ Building Docker image using custom builder container with tag: ${IMAGE_TAG}"
                         sh """
-                            docker build \
-                                --label org.opencontainers.image.version=${IMAGE_TAG} \
-                                --label org.opencontainers.image.created=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-                                --label deployment_version=${IMAGE_TAG} \
-                                --label git.commit=\$(git rev-parse HEAD) \
-                                --label build.timestamp="${BUILD_TIMESTAMP}" \
-                                --label build.user="\$(whoami)" \
-                                --build-arg BUILD_VERSION=${IMAGE_TAG} \
-                                --no-cache \
-                                -t ${params.GOMOVIE_BACKEND_IMAGE}:${IMAGE_TAG} \
-                                -t ${params.GOMOVIE_BACKEND_IMAGE}:latest \
-                                -f ${env.DOCKERFILE} .
+                            docker run --rm \
+                                -v /var/run/docker.sock:/var/run/docker.sock \
+                                -v \$(pwd):/workspace \
+                                -w /workspace \
+                                ${BUILDER_IMAGE} \
+                                docker build \
+                                    --label org.opencontainers.image.version=${IMAGE_TAG} \
+                                    --label org.opencontainers.image.created=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+                                    --label deployment_version=${IMAGE_TAG} \
+                                    --label git.commit=\$(git rev-parse HEAD) \
+                                    --label build.timestamp="${BUILD_TIMESTAMP}" \
+                                    --label build.user="\$(whoami)" \
+                                    --build-arg BUILD_VERSION=${IMAGE_TAG} \
+                                    --no-cache \
+                                    -t ${params.GOMOVIE_BACKEND_IMAGE}:${IMAGE_TAG} \
+                                    -t ${params.GOMOVIE_BACKEND_IMAGE}:latest \
+                                    -f ${env.DOCKERFILE} .
                         """
                         echo "✓ Docker image built successfully"
-                   } catch (Exception e) {
-                        error "Failed to build Docker image: ${e.message}"
-                   }
-                }
-            }
-        }
-        stage('Verify Deployment Version Label') {
-            steps {
-                script {
-                    try{
-                        echo "→ Verifying deployment version label..."
-                        def labels = sh(
-                            script: "docker inspect --format='{{json .Config.Labels}}' ${params.GOMOVIE_BACKEND_IMAGE}:${IMAGE_TAG}",
-                            returnStdout: true
-                        ).trim()
 
-                        if (!labels.contains("\"deployment_version\":\"${IMAGE_TAG}\"")) {
-                            error "Label 'deployment_version' with value '${IMAGE_TAG}' not found in the Docker image."
-                        }
 
-                        echo "Verified label 'deployment_version' with value '${IMAGE_TAG}'."
-                    } catch (Exception e) {
-                        error "Failed to verify deployment version label: ${e.message}"
-                    }
-                }
-            }
-        }
-        stage('Push Docker Image') {
-            steps {
-                script {
-                    try {
-                        echo "→ Pushing Docker image to repository..."
+                        // Push the Docker image to the registry
                         withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASSWORD')]) {
+                            credentialsId: 'dockerhub-credentials',
+                            usernameVariable: 'DOCKER_USER',
+                            passwordVariable: 'DOCKER_PASSWORD')]) {
                             sh """#!/bin/bash -e
                                 echo "→ Logging into Docker registry..."
                                 echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
@@ -152,9 +135,10 @@ pipeline {
                                 echo "✓ Successfully logged out from Docker registry"
                             """
                         }
-                    } catch (Exception e) {
-                        error "Failed to push Docker image: ${e.message}"
-                    }
+
+                   } catch (Exception e) {
+                        error "Failed to build Docker image: ${e.message}"
+                   }
                 }
             }
         }

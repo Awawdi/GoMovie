@@ -1,19 +1,12 @@
-# Builder Image for Docker Builds
-FROM docker:20.10.24-dind AS builder
+# builder.Dockerfile
+FROM ubuntu:20.04
 
-# Install additional tools needed for the build process
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
-    build-base \
-    git
+# Install Docker CLI, Git, and Curl
+RUN apt-get update && apt-get install -y \
+    docker.io \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory
+# Set working directory
 WORKDIR /workspace
-
-# Install Python dependencies (Optional: If needed for custom tooling)
-RUN pip install --no-cache-dir wheel
-
-COPY ./build-scripts /workspace/build-scripts
-
-CMD ["sh"]
