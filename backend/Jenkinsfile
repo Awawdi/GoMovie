@@ -1,101 +1,215 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+                image 'python:3.9-alpine'
+                args '--rm'
+            }
+    }
+
+    options {
+        timeout(time: 1, unit: 'HOURS')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        disableConcurrentBuilds()
+        timestamps()
+    }
 
     environment {
-        DOCKERHUB_REPO = 'orsanaw/gomovie-backend-image'
         DOCKERFILE = 'backend/Dockerfile'
-        IMAGE_VERSION_FILE = 'backend-version.txt'
+        IMAGE_VERSION_FILE = 'version.txt'
+        BUILD_TIMESTAMP = sh(script: 'date -u "+%Y-%m-%d %H:%M:%S UTC"', returnStdout: true).trim()
     }
 
     parameters {
-        choice(name: 'VERSION_INCREMENT', choices: ['MAJOR', 'MINOR', 'PATCH'], description: 'Select the version part to increment')
+        choice(
+        name: 'VERSION_INCREMENT',
+        choices: ['PATCH','MAJOR','MINOR'],
+        description: 'Select the version part to increment (default: PATCH)'
+        )
+        string(
+            name: 'GOMOVIE_BACKEND_IMAGE',
+            defaultValue: 'orsanaw/gomovie-backend-image',
+            description: 'Docker repository for the backend image. Must not be empty.',
+            trim: true
+        )
     }
 
     stages {
+        stage('Validate Environment') {
+            steps {
+                script {
+                    echo "→ Starting environment validation at ${BUILD_TIMESTAMP}"
+                    if (!params.GOMOVIE_BACKEND_IMAGE?.trim()) {
+                        error "GOMOVIE_BACKEND_IMAGE parameter is missing or empty."
+                    }
+                    echo "✓ Environment validation successful."
+
+                    try {
+                        echo "→ Checking Docker daemon status..."
+                        def dockerInfo = sh(script: 'docker info', returnStdout: true).trim()
+                        echo "✓ Docker daemon is running and accessible"
+                        def dockerVersion = sh(script: 'docker version --format "{{.Server.Version}}"', returnStdout: true).trim()
+                        echo "✓ Docker version: ${dockerVersion}"
+
+                    } catch (Exception e) {
+                            error """
+                                Docker daemon check failed: ${e.message}
+                            """
+                    }
+                }
+            }
+        }
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-
         stage('Read Current Version') {
             steps {
                 script {
-                    if (fileExists(env.IMAGE_VERSION_FILE)) {
-                        def versionContent = readFile(env.IMAGE_VERSION_FILE).trim()
-                        def versionParts = versionContent.tokenize('.')
-
-                        if (versionParts.size() == 3) {
-                            MAJOR_VERSION = versionParts[0].toInteger()
-                            MINOR_VERSION = versionParts[1].toInteger()
-                            PATCH_VERSION = versionParts[2].toInteger()
-                        } else {
-                            error("Invalid version format in ${env.IMAGE_VERSION_FILE}. Expected format: x.y.z")
-                        }
-                    } else {
-                        MAJOR_VERSION = 1
-                        MINOR_VERSION = 0
-                        PATCH_VERSION = 0
+                    try {
+                        echo "→ Reading current version from ${env.IMAGE_VERSION_FILE}..."
+                        readCurrentVersion(env.IMAGE_VERSION_FILE, params.VERSION_INCREMENT)
+                        echo "✓ New version tag: ${IMAGE_TAG}"
+                    } catch (Exception e) {
+                        error "Failed to read/increment version: ${e.message}"
                     }
-
-                    // Increment the selected version part
-                    if (params.VERSION_INCREMENT == 'MAJOR') {
-                        MAJOR_VERSION++
-                        MINOR_VERSION = 0
-                        PATCH_VERSION = 0
-                    } else if (params.VERSION_INCREMENT == 'MINOR') {
-                        MINOR_VERSION++
-                        PATCH_VERSION = 0
-                    } else if (params.VERSION_INCREMENT == 'PATCH') {
-                        PATCH_VERSION++
-                    } else {
-                        error("Invalid VERSION_INCREMENT parameter: ${params.VERSION_INCREMENT}")
-                    }
-
-                    IMAGE_TAG = "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}"
                 }
             }
         }
-
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${env.DOCKERHUB_REPO}:${IMAGE_TAG} -f ${env.DOCKERFILE} ."
+                    try {
+                        echo "→ Building Docker image with tag: ${IMAGE_TAG}"
+                        echo "→ Using Dockerfile: ${env.DOCKERFILE}"
+                        sh """
+                            docker build \
+                                --label org.opencontainers.image.version=${IMAGE_TAG} \
+                                --label org.opencontainers.image.created=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+                                --label deployment_version=${IMAGE_TAG} \
+                                --label git.commit=\$(git rev-parse HEAD) \
+                                --label build.timestamp="${BUILD_TIMESTAMP}" \
+                                --label build.user="\$(whoami)" \
+                                --build-arg BUILD_VERSION=${IMAGE_TAG} \
+                                --no-cache \
+                                -t ${params.GOMOVIE_BACKEND_IMAGE}:${IMAGE_TAG} \
+                                -t ${params.GOMOVIE_BACKEND_IMAGE}:latest \
+                                -f ${env.DOCKERFILE} .
+                        """
+                        echo "✓ Docker image built successfully"
+                   } catch (Exception e) {
+                        error "Failed to build Docker image: ${e.message}"
+                   }
                 }
             }
         }
-
-        stage('Push Docker Image') {
+        stage('Verify Deployment Version Label') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials',
-                                                  usernameVariable: 'DOCKER_USERNAME',
-                                                  passwordVariable: 'DOCKER_PASSWORD')]) {
-                    script {
-                        sh """
-                        docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
-                        docker push ${env.DOCKERHUB_REPO}:${IMAGE_TAG}
-                        """
+                script {
+                    try{
+                        echo "→ Verifying deployment version label..."
+                        def labels = sh(
+                            script: "docker inspect --format='{{json .Config.Labels}}' ${params.GOMOVIE_BACKEND_IMAGE}:${IMAGE_TAG}",
+                            returnStdout: true
+                        ).trim()
+
+                        if (!labels.contains("\"deployment_version\":\"${IMAGE_TAG}\"")) {
+                            error "Label 'deployment_version' with value '${IMAGE_TAG}' not found in the Docker image."
+                        }
+
+                        echo "Verified label 'deployment_version' with value '${IMAGE_TAG}'."
+                    } catch (Exception e) {
+                        error "Failed to verify deployment version label: ${e.message}"
                     }
                 }
             }
         }
-
-        stage('Update Version File') {
+        stage('Push Docker Image') {
             steps {
                 script {
-                    writeFile file: env.IMAGE_VERSION_FILE, text: IMAGE_TAG
-                    archiveArtifacts artifacts: env.IMAGE_VERSION_FILE, fingerprint: true
+                    try {
+                        echo "→ Pushing Docker image to repository..."
+                        withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASSWORD')]) {
+                            sh """#!/bin/bash -e
+                                echo "→ Logging into Docker registry..."
+                                echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+                                echo "✓ Successfully logged into Docker registry"
+
+                                echo "→ Pushing image with tag: ${IMAGE_TAG}"
+                                docker push ${params.GOMOVIE_BACKEND_IMAGE}:${IMAGE_TAG}
+                                echo "✓ Successfully pushed ${params.GOMOVIE_BACKEND_IMAGE}:${IMAGE_TAG}"
+
+                                echo "→ Pushing latest tag..."
+                                docker push ${params.GOMOVIE_BACKEND_IMAGE}:latest
+                                echo "✓ Successfully pushed ${params.GOMOVIE_BACKEND_IMAGE}:latest"
+
+                                echo "→ Logging out from Docker registry..."
+                                docker logout
+                                echo "✓ Successfully logged out from Docker registry"
+                            """
+                        }
+                    } catch (Exception e) {
+                        error "Failed to push Docker image: ${e.message}"
+                    }
+                }
+            }
+        }
+        stage('Post Image Push') {
+            parallel {
+                stage('Update Version File') {
+                    when {
+                        expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+                    }
+                    steps {
+                        script {
+                            try {
+                                echo "→ Updating version file: ${env.IMAGE_VERSION_FILE}"
+                                writeFile file: env.IMAGE_VERSION_FILE, text: IMAGE_TAG
+                                archiveArtifacts artifacts: env.IMAGE_VERSION_FILE, fingerprint: true
+                                echo "✓ Version file updated and archived"
+                            } catch (Exception e) {
+                                error "Failed to update version file: ${e.message}"
+                            }
+                        }
+                    }
+                }
+                stage('List Docker Images') {
+                    steps {
+                        script {
+                            sh """
+                                docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}"
+                            """
+                        }
+                    }
                 }
             }
         }
     }
-
     post {
         success {
-            echo "Successfully built and pushed Docker image: ${env.DOCKERHUB_REPO}:${IMAGE_TAG}"
+            script {
+                def duration = currentBuild.durationString
+                echo """
+                    ✅ Build Successful!
+                    • Image: ${params.GOMOVIE_BACKEND_IMAGE}:${IMAGE_TAG}
+                    • Build Duration: ${duration}
+                    • Build URL: ${env.BUILD_URL}
+                """
+            }
         }
         failure {
-            echo "Build failed. Check the logs for details."
+            script {
+                def duration = currentBuild.durationString
+                echo """
+                    ❌ Build Failed!
+                    • Duration: ${duration}
+                    • Build URL: ${env.BUILD_URL}
+                    Please check the logs above for details.
+                """
+            }
         }
     }
 }

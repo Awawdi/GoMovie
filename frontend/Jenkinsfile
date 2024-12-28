@@ -13,10 +13,6 @@ pipeline {
         DOCKERFILE = 'frontend/Dockerfile'
         IMAGE_VERSION_FILE = 'version.txt'
         BUILD_TIMESTAMP = sh(script: 'date -u "+%Y-%m-%d %H:%M:%S UTC"', returnStdout: true).trim()
-
-        //Builder files
-        BUILDER_DOCKERFILE = 'frontend/Builder.Dockerfile'
-        BUILDER_IMAGE = 'frontend-builder:latest'
     }
 
     parameters {
@@ -61,23 +57,6 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
-            }
-        }
-        stage('Prepare Builder') {
-            steps {
-                script {
-                    try {
-                        echo "→ Building builder container..."
-                        sh """
-                            docker build \
-                                -t ${BUILDER_IMAGE} \
-                                -f ${BUILDER_DOCKERFILE} .
-                        """
-                        echo "✓ Builder container ready"
-                    } catch (Exception e) {
-                        error "Failed to prepare builder container: ${e.message}"
-                    }
-                }
             }
         }
         stage('Read Current Version') {
@@ -141,7 +120,6 @@ pipeline {
                 }
             }
         }
-
         stage('Push Docker Image') {
             steps {
                 script {
@@ -207,15 +185,6 @@ pipeline {
         }
     }
     post {
-        always {
-            script {
-                try {
-                    sh "docker rmi ${BUILDER_IMAGE} || true"
-                } catch (Exception e) {
-                    echo "Warning: Failed to remove builder image: ${e.message}"
-                }
-            }
-        }
         success {
             script {
                 def duration = currentBuild.durationString
