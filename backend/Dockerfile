@@ -1,4 +1,5 @@
 FROM python:3.9-alpine AS builder
+LABEL builder=true
 WORKDIR /app
 
 COPY ./backend/pyproject.toml ./backend/requirements.txt /app/

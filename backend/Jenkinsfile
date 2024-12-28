@@ -61,17 +61,6 @@ pipeline {
                 checkout scm
             }
         }
-         stage('Build Custom Builder Image') {
-            steps {
-                script {
-                    echo "→ Building and pushing custom builder image"
-
-                    sh """
-                        docker build -f ${BUILDER_DOCKERFILE} -t ${BUILDER_IMAGE} .
-                    """
-                }
-            }
-        }
         stage('Read Current Version') {
             steps {
                 script {
@@ -95,8 +84,9 @@ pipeline {
                                 -v /var/run/docker.sock:/var/run/docker.sock \
                                 -v \$(pwd):/workspace \
                                 -w /workspace \
-                                ${BUILDER_IMAGE} \
+                                -f ${BUILDER_DOCKERFILE} -t ${BUILDER_IMAGE} \
                                 docker build \
+                                    --target runner \
                                     --label org.opencontainers.image.version=${IMAGE_TAG} \
                                     --label org.opencontainers.image.created=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
                                     --label deployment_version=${IMAGE_TAG} \
@@ -104,6 +94,7 @@ pipeline {
                                     --label build.timestamp="${BUILD_TIMESTAMP}" \
                                     --label build.user="\$(whoami)" \
                                     --build-arg BUILD_VERSION=${IMAGE_TAG} \
+                                    --rm \
                                     --no-cache \
                                     -t ${params.GOMOVIE_BACKEND_IMAGE}:${IMAGE_TAG} \
                                     -t ${params.GOMOVIE_BACKEND_IMAGE}:latest \
@@ -174,6 +165,17 @@ pipeline {
         }
     }
     post {
+        always {
+            script {
+                try {
+                    echo "→ Cleaning up the builder image with label builder=true..."
+                    sh 'docker rmi $(docker images --filter=label=builder=true -q) || echo "No builder images to remove."'
+                    echo "✓ Builder image removed"
+                } catch (Exception e) {
+                    echo "⚠️ Failed to clean up builder image: ${e.message}"
+                }
+            }
+        }
         success {
             script {
                 def duration = currentBuild.durationString
