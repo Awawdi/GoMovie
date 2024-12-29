@@ -9,7 +9,7 @@ pipeline {
             steps {
                 sh """
                 echo "→ Building application image..."
-                docker build -t my-app-image:1.0.0 -f backend/Dockerfile .
+                docker build -t backend:1.0.0 -f backend/Dockerfile .
                 echo "✓ Application image built successfully!"
                 """
             }

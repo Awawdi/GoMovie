@@ -1,7 +1,25 @@
-FROM docker:24.0
+# Use a base image with Docker installed
+FROM docker:24.0-dind
 
-RUN apk add --no-cache bash git curl openjdk11 build-base
-ENV HOME=/workspace
-RUN mkdir -p $HOME/.docker && chmod -R 700 $HOME/.docker
+# Install essential build tools and dependencies
+RUN apk add --no-cache \
+    git \
+    openssh-client \
+    curl \
+    bash \
+    make \
+    python3 \
+    py3-pip
+
+# Install Docker Compose (optional but often useful)
+RUN pip3 install docker-compose
+
+# Set up Docker configuration
+ENV DOCKER_TLS_CERTDIR=/certs
+RUN mkdir -p /certs/client && chmod 1777 /certs/client
+
+# Set working directory
 WORKDIR /workspace
-CMD ["bash"]
+
+# Keep container running (necessary for Jenkins pipeline)
+CMD ["dockerd"]
