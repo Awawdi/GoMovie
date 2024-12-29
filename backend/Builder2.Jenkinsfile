@@ -28,17 +28,6 @@ pipeline {
         )
     }
     stages {
-        stage('Validate Environment') {
-            steps {
-                script {
-                    echo "→ Starting environment validation at ${BUILD_TIMESTAMP}"
-                    if (!params.GOMOVIE_BACKEND_IMAGE?.trim()) {
-                        error "GOMOVIE_BACKEND_IMAGE parameter is missing or empty."
-                    }
-                    echo "✓ Environment validation successful."
-                }
-            }
-        }
         stage('Checkout') {
             steps {
                 checkout scm
@@ -59,7 +48,6 @@ pipeline {
         }
         stage('Build Docker Image') {
             steps {
-                script {
                     try {
                         echo "→ Building Docker image"
                         sh """
@@ -68,7 +56,6 @@ pipeline {
                                     --label org.opencontainers.image.version=${IMAGE_TAG} \
                                     --label org.opencontainers.image.created=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
                                     --label deployment_version=${IMAGE_TAG} \
-                                    --label git.commit=\$(git rev-parse HEAD) \
                                     --label build.timestamp="${BUILD_TIMESTAMP}" \
                                     --label build.user="\$(whoami)" \
                                     --build-arg BUILD_VERSION=${IMAGE_TAG} \
@@ -109,7 +96,7 @@ pipeline {
                         error "Failed to build Docker image: ${e.message}"
                    }
                 }
-            }
+
         }
         stage('Post Image Push') {
             parallel {
