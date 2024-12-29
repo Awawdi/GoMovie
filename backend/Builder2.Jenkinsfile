@@ -22,7 +22,7 @@ pipeline {
         )
         string(
             name: 'GOMOVIE_BACKEND_IMAGE',
-            defaultValue: 'orsanaw/gomovie-backend-image-ephemeral',
+            defaultValue: 'orsanaw/gomovie-backend-image-dockerfile-as-agent',
             description: 'Docker repository for the backend image. Must not be empty.',
             trim: true
         )
@@ -36,19 +36,6 @@ pipeline {
                         error "GOMOVIE_BACKEND_IMAGE parameter is missing or empty."
                     }
                     echo "✓ Environment validation successful."
-
-                    try {
-                        echo "→ Checking Docker daemon status..."
-                        def dockerInfo = sh(script: 'docker info', returnStdout: true).trim()
-                        echo "✓ Docker daemon is running and accessible"
-                        def dockerVersion = sh(script: 'docker version --format "{{.Server.Version}}"', returnStdout: true).trim()
-                        echo "✓ Docker version: ${dockerVersion}"
-
-                    } catch (Exception e) {
-                            error """
-                                Docker daemon check failed: ${e.message}
-                            """
-                    }
                 }
             }
         }
