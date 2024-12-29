@@ -78,28 +78,32 @@ pipeline {
             steps {
                 script {
                     try {
-                        echo "→ Building the Docker image..."
+                        echo "→ Building Docker image"
                         sh """
-                        docker build \
-                            --target runner \
-                            --label org.opencontainers.image.version=${IMAGE_TAG} \
-                            --label org.opencontainers.image.created=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-                            --build-arg BUILD_VERSION=${IMAGE_TAG} \
-                            --security-opt no-new-privileges \
-                            --rm \
-                            --no-cache \
-                            -t ${params.GOMOVIE_BACKEND_IMAGE}:${IMAGE_TAG} \
-                            -t ${params.GOMOVIE_BACKEND_IMAGE}:latest \
-                            -f ${DOCKERFILE} .
+                                docker build \
+                                    --target runner \
+                                    --label org.opencontainers.image.version=${IMAGE_TAG} \
+                                    --label org.opencontainers.image.created=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+                                    --label deployment_version=${IMAGE_TAG} \
+                                    --label git.commit=\$(git rev-parse HEAD) \
+                                    --label build.timestamp="${BUILD_TIMESTAMP}" \
+                                    --label build.user="\$(whoami)" \
+                                    --build-arg BUILD_VERSION=${IMAGE_TAG} \
+                                    --rm \
+                                    --no-cache \
+                                    -t ${params.GOMOVIE_BACKEND_IMAGE}:${IMAGE_TAG} \
+                                    -t ${params.GOMOVIE_BACKEND_IMAGE}:latest \
+                                    -f ${env.DOCKERFILE} .
                         """
                         echo "✓ Docker image built successfully"
 
-                        echo "→ Push the Docker image to the registry"
+
+                        // Push the Docker image to the registry
                         withCredentials([usernamePassword(
                             credentialsId: 'dockerhub-credentials',
                             usernameVariable: 'DOCKER_USER',
                             passwordVariable: 'DOCKER_PASSWORD')]) {
-                            sh '''#!/bin/bash -e
+                            sh """
                                 echo "→ Logging into Docker registry..."
                                 echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
                                 echo "✓ Successfully logged into Docker registry"
@@ -115,12 +119,12 @@ pipeline {
                                 echo "→ Logging out from Docker registry..."
                                 docker logout
                                 echo "✓ Successfully logged out from Docker registry"
-                            '''
+                            """
                         }
-                     }
-                     catch (Exception e) {
-                        error "Failed to push Docker image: ${e.message}"
-                    }
+
+                   } catch (Exception e) {
+                        error "Failed to build Docker image: ${e.message}"
+                   }
                 }
             }
         }
