@@ -6,7 +6,7 @@ pipeline {
         }
     }
     environment {
-        DOCKERFILE = 'Dockerfile'
+        DOCKERFILE = 'backend/Dockerfile'
         BUILD_TIMESTAMP = "${new Date().format('yyyy-MM-dd\'T\'HH:mm:ss\'Z\'', TimeZone.getTimeZone('UTC'))}"
         IMAGE_TAG = "1.0.0"
         HOME = '/tmp'
