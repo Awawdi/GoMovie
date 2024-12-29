@@ -102,7 +102,7 @@ pipeline {
                             credentialsId: 'dockerhub-credentials',
                             usernameVariable: 'DOCKER_USER',
                             passwordVariable: 'DOCKER_PASSWORD')]) {
-                            sh """#!/bin/bash -e
+                            sh '''#!/bin/bash -e
                                 echo "→ Logging into Docker registry..."
                                 echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
                                 echo "✓ Successfully logged into Docker registry"
@@ -118,12 +118,12 @@ pipeline {
                                 echo "→ Logging out from Docker registry..."
                                 docker logout
                                 echo "✓ Successfully logged out from Docker registry"
-                            """
+                            '''
                         }
 
-                   } catch (Exception e) {
-                        error "Failed to build Docker image: ${e.message}"
-                   }
+                    } catch (Exception e) {
+                        error "Failed to push Docker image: ${e.message}"
+                    }
                 }
             }
         }
