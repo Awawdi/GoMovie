@@ -1,6 +1,6 @@
 @Library('shared-library') _
 pipeline {
-    agent { dockerfile true}
+    agent { dockerfile filename 'backend/Dockerfile' }
 
     options {
         timeout(time: 1, unit: 'HOURS')
