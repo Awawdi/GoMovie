@@ -77,6 +77,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
+                    try {
+                        echo "→ Building the Docker image..."
                         sh """
                         docker build \
                             --target runner \
@@ -90,13 +92,8 @@ pipeline {
                             -t ${params.GOMOVIE_BACKEND_IMAGE}:latest \
                             -f ${DOCKERFILE} .
                         """
-                }
-            }
-        }
-        stage('Push Docker Image') {
-            steps {
-                script {
-                    try {
+                        echo "✓ Docker image built successfully"
+
                         echo "→ Push the Docker image to the registry"
                         withCredentials([usernamePassword(
                             credentialsId: 'dockerhub-credentials',
@@ -119,8 +116,6 @@ pipeline {
                                 docker logout
                                 echo "✓ Successfully logged out from Docker registry"
                             '''
-                        }
-
                     } catch (Exception e) {
                         error "Failed to push Docker image: ${e.message}"
                     }
