@@ -9,10 +9,8 @@ RUN apk add --no-cache \
     bash \
     make \
     python3 \
-    py3-pip
-
-# Install Docker Compose (optional but often useful)
-RUN pip3 install docker-compose
+    py3-pip \
+    docker-compose
 
 # Set up Docker configuration
 ENV DOCKER_TLS_CERTDIR=/certs
