@@ -3,8 +3,8 @@ pipeline {
         docker {
             image 'docker:24.0'
             args '''
-                --group-add=$(stat -c '%g' /var/run/docker.sock) \
                 -v /var/run/docker.sock:/var/run/docker.sock \
+                --group-add 999 \
                 --rm \
                 -u nonroot
             '''
@@ -22,6 +22,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
+
                         sh """
                         docker build \
                             --target runner \
@@ -35,6 +36,7 @@ pipeline {
                             -t ${params.GOMOVIE_BACKEND_IMAGE}:latest \
                             -f ${DOCKERFILE} .
                         """
+
                 }
             }
         }
