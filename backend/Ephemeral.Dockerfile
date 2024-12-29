@@ -9,6 +9,8 @@ pipeline {
         DOCKERFILE = 'Dockerfile'
         BUILD_TIMESTAMP = "${new Date().format('yyyy-MM-dd\'T\'HH:mm:ss\'Z\'', TimeZone.getTimeZone('UTC'))}"
         IMAGE_TAG = "1.0.0"
+        HOME = '/tmp'
+        DOCKER_CONFIG = '/tmp/.docker'
     }
     parameters {
         string(name: 'GOMOVIE_BACKEND_IMAGE', defaultValue: 'my-backend-image', description: 'Docker image name')
@@ -18,6 +20,7 @@ pipeline {
             steps {
                 echo "→ Building Docker image using custom builder container with tag: ${IMAGE_TAG}"
                 sh """
+                    mkdir -p ${DOCKER_CONFIG}
                     docker build \
                         --target runner \
                         --label org.opencontainers.image.version=${IMAGE_TAG} \
