@@ -2,6 +2,7 @@ pipeline {
     agent {
         dockerfile {
             filename 'backend/Builder2.Dockerfile'
+            args '--privileged -v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
     stages {

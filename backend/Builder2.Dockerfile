@@ -12,12 +12,17 @@ RUN apk add --no-cache \
     py3-pip \
     docker-compose
 
-# Set up Docker configuration
 ENV DOCKER_TLS_CERTDIR=/certs
 RUN mkdir -p /certs/client && chmod 1777 /certs/client
 
-# Set working directory
-WORKDIR /workspace
+RUN mkdir -p /.docker && chmod 777 /.docker
 
-# Keep container running (necessary for Jenkins pipeline)
+WORKDIR /workspace
+RUN chmod 777 /workspace
+
+RUN mkdir -p /home/jenkins && \
+    chmod -R 777 /home/jenkins
+
+ENV DOCKER_HOST=unix:///var/run/docker.sock
+
 CMD ["dockerd"]
