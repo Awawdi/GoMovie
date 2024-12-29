@@ -1,13 +1,8 @@
 pipeline {
     agent {
         docker {
-            image 'docker:24.0'
-            args '''
-                -v /var/run/docker.sock:/var/run/docker.sock \
-                --group-add 999 \
-                --rm \
-                -u nonroot
-            '''
+            image 'docker:24.0-dind'
+            args '--privileged -v /var/run/docker.sock:/var/run/docker.sock --rm -u root'
         }
     }
     options {
@@ -30,7 +25,7 @@ pipeline {
         )
         string(
             name: 'GOMOVIE_BACKEND_IMAGE',
-            defaultValue: 'orsanaw/gomovie-backend-image',
+            defaultValue: 'orsanaw/gomovie-backend-image-ephemeral',
             description: 'Docker repository for the backend image. Must not be empty.',
             trim: true
         )
