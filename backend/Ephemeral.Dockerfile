@@ -6,6 +6,8 @@ pipeline {
         }
     }
     environment {
+        HOME = '/tmp'
+        DOCKER_CONFIG = '/tmp/.docker'
         DOCKERFILE = 'Dockerfile'
         BUILD_TIMESTAMP = "${new Date().format('yyyy-MM-dd\'T\'HH:mm:ss\'Z\'', TimeZone.getTimeZone('UTC'))}"
         IMAGE_TAG = "1.0.0"
@@ -18,6 +20,7 @@ pipeline {
             steps {
                 echo "→ Building Docker image using Docker-in-Docker container with tag: ${IMAGE_TAG}"
                 sh """
+                    mkdir -p ${DOCKER_CONFIG}
                     docker build \
                         --target runner \
                         --label org.opencontainers.image.version=${IMAGE_TAG} \
