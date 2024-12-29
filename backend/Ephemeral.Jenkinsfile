@@ -2,14 +2,13 @@ pipeline {
     agent {
         docker {
             image 'docker:24.0-dind'
-            args '--privileged -v /var/run/docker.sock:/var/run/docker.sock -u root'
+            args '--privileged -v /var/run/docker.sock:/var/run/docker.sock --rm -u root'
         }
     }
     environment {
         DOCKERFILE = 'backend/Dockerfile'
         BUILD_TIMESTAMP = "${new Date().format('yyyy-MM-dd\'T\'HH:mm:ss\'Z\'', TimeZone.getTimeZone('UTC'))}"
         IMAGE_TAG = "1.0.0"
-        HOME = '/tmp'
     }
     parameters {
         string(name: 'GOMOVIE_BACKEND_IMAGE', defaultValue: 'my-backend-image', description: 'Docker image name')
