@@ -116,7 +116,9 @@ pipeline {
                                 docker logout
                                 echo "✓ Successfully logged out from Docker registry"
                             '''
-                    } catch (Exception e) {
+                        }
+                     }
+                     catch (Exception e) {
                         error "Failed to push Docker image: ${e.message}"
                     }
                 }
