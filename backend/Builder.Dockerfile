@@ -1,14 +1,12 @@
-FROM docker:20.10.7
+# builder.Dockerfile
+FROM ubuntu:20.04
 
-WORKDIR /workspace
-
-RUN apk add --no-cache \
-    curl \
+# Install Docker CLI, Git, and Curl
+RUN apt-get update && apt-get install -y \
+    docker.io \
     git \
-    bash \
-        && curl -fsSL https://get.docker.com/ | sh  # Install the latest Docker version
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set the environment variable for Docker to ensure Docker commands work inside the container
-ENV DOCKER_CLI_EXPERIMENTAL=enabled
-
-ENTRYPOINT ["docker"]
+# Set working directory
+WORKDIR /workspace
