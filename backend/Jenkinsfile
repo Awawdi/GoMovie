@@ -109,7 +109,7 @@ pipeline {
                                     --no-cache \
                                     -t ${params.GOMOVIE_BACKEND_IMAGE}:${IMAGE_TAG} \
                                     -t ${params.GOMOVIE_BACKEND_IMAGE}:latest \
-                                    -f ${env.DOCKERFILE} .
+                                    -f ${env.DOCKERFILE} . --build-context backend
                         """
                         echo "✓ Docker image built successfully"
 
