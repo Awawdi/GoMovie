@@ -76,17 +76,20 @@ pipeline {
         }
         stage('Build Custom Builder Image') {
             steps {
-                script {
-                    echo "→ Building custom builder image"
+                dir('backend') {
+                    script {
+                        echo "→ Building custom builder image"
 
-                    sh """
-                        docker build -f ${BUILDER_DOCKERFILE} -t ${BUILDER_IMAGE} .
-                    """
+                        sh """
+                            docker build -f ${BUILDER_DOCKERFILE} -t ${BUILDER_IMAGE} .
+                        """
+                    }
                 }
             }
         }
         stage('Build Docker Image') {
             steps {
+            dir('backend') {
                 script {
                     try {
                         echo "→ Building Docker image using custom builder container with tag: ${IMAGE_TAG}"
@@ -142,7 +145,7 @@ pipeline {
                         error "Failed to build Docker image: ${e.message}"
                    }
                 }
-            }
+            }}
         }
         stage('Post Image Push') {
             parallel {
