@@ -10,11 +10,11 @@ pipeline {
     }
 
     environment {
-        DOCKERFILE = 'backend/Dockerfile'
+        DOCKERFILE = 'Dockerfile'
         IMAGE_VERSION_FILE = 'backend-version.txt'
         BUILD_TIMESTAMP = sh(script: 'date -u "+%Y-%m-%d %H:%M:%S UTC"', returnStdout: true).trim()
         BUILDER_IMAGE = 'orsanaw/custom-builder:latest'
-        BUILDER_DOCKERFILE = 'backend/Builder.Dockerfile'
+        BUILDER_DOCKERFILE = 'Builder.Dockerfile'
     }
 
     parameters {
@@ -109,7 +109,7 @@ pipeline {
                                     --no-cache \
                                     -t ${params.GOMOVIE_BACKEND_IMAGE}:${IMAGE_TAG} \
                                     -t ${params.GOMOVIE_BACKEND_IMAGE}:latest \
-                                    -f ${env.DOCKERFILE} . --build-context backend
+                                    -f ${env.DOCKERFILE} .
                         """
                         echo "✓ Docker image built successfully"
 
