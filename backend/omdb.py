@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import aiohttp
@@ -7,8 +9,9 @@ from cachetools import TTLCache
 OMDB_API_KEY = "2689c2b7"
 OMDB_API_URL = f"http://www.omdbapi.com/"
 
-# Initialize a TTL cache (cache expires after 300 seconds)
-cache = TTLCache(maxsize=100, ttl=300)
+# Initialize a TTL cache (cache expires after x seconds)
+cache_ttl = int(os.getenv("CACHE_TTL", 300))
+cache = TTLCache(maxsize=100, ttl=cache_ttl)
 
 app = FastAPI()
 
@@ -138,3 +141,10 @@ async def search(request: Request):
 
     results = await search_movies_by_title(search_query)
     return {"movies": results}
+
+@app.get("/check_ttl")
+async def root():
+    """
+    Root endpoint to display the current TTL value for the cache.
+    """
+    return {"cache_ttl": cache.ttl}
