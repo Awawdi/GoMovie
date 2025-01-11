@@ -148,3 +148,7 @@ async def root():
     Root endpoint to display the current TTL value for the cache.
     """
     return {"cache_ttl": cache.ttl}
+
+@app.get("/pod")
+async def read_pod():
+    return {"Current container": f": {os.environ.get('HOSTNAME', 'localhost')}"}
