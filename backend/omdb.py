@@ -143,7 +143,7 @@ async def search(request: Request):
     return {"movies": results}
 
 @app.get("/check_ttl")
-async def root():
+async def read_ttl():
     """
     Root endpoint to display the current TTL value for the cache.
     """
