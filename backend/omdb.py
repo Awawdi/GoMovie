@@ -66,7 +66,6 @@ async def movie_details(request: Request):
             "plot": movie.get('Plot', 'No plot available'),
         }
 
-
 async def search_movies_by_title(search_query):
     """Search for movies by title and return detailed information, sorted by rating or view count."""
     if search_query in cache:
@@ -92,21 +91,36 @@ async def search_movies_by_title(search_query):
 
         for movie in detailed_results:
             # Skip failed or invalid responses
-            if not isinstance(movie, dict) or movie.get('Response') == 'False':
+            if isinstance(movie, Exception) or not isinstance(movie, dict) or movie.get('Response') == 'False':
                 continue
 
-            # Add movie with detailed information
-            movies.append({
-                "id": movie.get('imdbID', 'Unknown ID'),
-                "name": movie.get('Title', 'Unknown Title'),
-                "year": movie.get('Year', 'Unknown Year'),
-                "imdb_url": f"https://www.imdb.com/title/{movie.get('imdbID', 'Unknown ID')}/",
-                "parental_guide": movie.get('Rated', 'Not Rated'),
-                "rating": float(movie.get('imdbRating', 0.0)),
-                "votes": int(movie.get('imdbVotes', '0').replace(',', '')),
-            })
+            try:
+                # Safely parse ratings and votes
+                imdb_rating = movie.get('imdbRating', '0.0')
+                rating = float(imdb_rating) if imdb_rating != 'N/A' else 0.0
 
+                imdb_votes = movie.get('imdbVotes', '0')
+                votes = int(imdb_votes.replace(',', '')) if imdb_votes != 'N/A' else 0
+
+                # Add movie with detailed information
+                movies.append({
+                    "id": movie.get('imdbID', 'Unknown ID'),
+                    "name": movie.get('Title', 'Unknown Title'),
+                    "year": movie.get('Year', 'Unknown Year'),
+                    "imdb_url": f"https://www.imdb.com/title/{movie.get('imdbID', 'Unknown ID')}/",
+                    "parental_guide": movie.get('Rated', 'Not Rated'),
+                    "rating": rating,
+                    "votes": votes,
+                })
+
+            except (ValueError, KeyError) as e:
+                # Log the error and skip invalid entries
+                print(f"Error processing movie data: {movie} | Error: {e}")
+
+        # Sort movies by rating and votes
         movies.sort(key=lambda m: (m['rating'], m['votes']), reverse=True)
+
+        # Cache the results for future queries
         cache[search_query] = movies
         return movies
 

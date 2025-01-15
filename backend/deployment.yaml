@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
       - name: gomovie-backend
-        image: orsanaw/gomovie-amat:dev-read-ttl
+        image: orsanaw/gomovie-amat:v1501
         ports:
         - containerPort: 8080
